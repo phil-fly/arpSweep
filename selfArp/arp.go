@@ -30,10 +30,11 @@ type ArpHandle struct {
 	ctx context.Context
 	cancel context.CancelFunc
 	tTicker *time.Ticker
+	mod  int
 }
 
-func NewArpHandle(iface string)(*ArpHandle){
-	handle, err := pcap.OpenLive(iface, 2048, true, 30 * time.Second)
+func NewArpHandle(iface string,mod int)(*ArpHandle){
+	handle, err := pcap.OpenLive(iface, 65535, true, pcap.BlockForever)
 	if err != nil {
 		log.Fatal("pcap打开失败:", err)
 	}
@@ -48,6 +49,7 @@ func NewArpHandle(iface string)(*ArpHandle){
 		dowork: make(chan string),
 		ctx: ctx,
 		cancel: cancel,
+		mod:mod,
 	}
 }
 
@@ -136,9 +138,17 @@ func (self *ArpHandle)SendArpPackage(ip selfIp.IP) {
 	}
 	// 以太网首部
 	// EthernetType 0x0806  ARP
+	var DstMAC = net.HardwareAddr{}
+	if self.mod == 1 {
+		DstMAC = net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+
+	}else{
+		DstMAC = net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xfe}
+	}
+
 	ether := &layers.Ethernet{
 		SrcMAC: self.localHaddr,
-		DstMAC: net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		DstMAC: DstMAC,
 		EthernetType: layers.EthernetTypeARP,
 	}
 
